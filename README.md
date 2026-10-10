@@ -4,12 +4,12 @@
 
 ## Compatibility
 
-- ROS 2 Lyrical, `rclpy`, and `rmw_fastrtps_cpp` on macOS or Linux.
+- ROS 2 Lyrical, `rclpy`, and host `rmw_fastrtps_cpp` on macOS or Linux. The tested host Fast DDS participant interoperates with the Android Cyclone DDS node.
 - The phone and host must use the same `ROS_DOMAIN_ID` (the default is `0`).
 - The Android app must have the selected DDS path enabled. Sensor publishing also requires the Android sensor runtime and the relevant sensor enabled.
 - The live checks recorded below used the existing Pixi ROS 2 Lyrical environment, a Xiaomi Android phone, and macOS. Ubuntu was not live-tested.
 
-The helper checks and reports the selected **host** interface. Supplying `interface:=...` is an interface-check/selection input to the helper; it does not currently install a Fast DDS interface allowlist on the host. Fast DDS uses its default host networking configuration. The Android app separately restricts its DDS participant to the selected phone transport.
+The helper checks and applies a Fast DDS host interface allowlist for the selected USB tether path. The Android app separately restricts its Cyclone DDS participant to the selected phone transport.
 
 ## Build in the existing ROS environment
 
@@ -28,7 +28,7 @@ echo "ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}"
 echo "RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-<ROS default>}"
 ```
 
-The selected middleware must resolve to `rmw_fastrtps_cpp`, matching the Android Fast DDS runtime. The helper exits with a clear error if it does not.
+The selected host middleware must resolve to `rmw_fastrtps_cpp`. The helper exits with a clear error if it does not. This is the host's middleware; the Android app uses Cyclone DDS.
 
 ## Connect over USB
 
@@ -46,17 +46,9 @@ If automatic selection reports that the interface is ambiguous or missing, inspe
 ros2 launch asr_ros2 connect.launch.py transport:=usb interface:=feth0
 ```
 
-## Connect over Wi-Fi
+## Wi-Fi DDS checks
 
-1. Enable **Wi-Fi DDS** and turn **USB DDS** off in the app.
-2. Put the phone and host on a network that allows DDS multicast traffic.
-3. Start the host node:
-
-   ```bash
-   ros2 launch asr_ros2 connect.launch.py transport:=wifi
-   ```
-
-Specify `interface:=en0` on macOS or the wireless interface name on Linux if automatic selection is ambiguous. Keeping both phone paths enabled is supported by the Android app, but test each path independently when diagnosing network issues.
+The host helper is intentionally USB-only. To verify Wi-Fi DDS, enable **Wi-Fi DDS** in the app and use the ROS 2 tools or a persistent robot node already available in your environment; do not launch `asr_ros2` for Wi-Fi. The earlier Wi-Fi helper mode was removed from the active path and its interface-selection logic remains commented in `asr_ros2/network.py` for reference.
 
 ## What it checks
 
@@ -87,11 +79,11 @@ Results from the live Mac/Pixi test session on 2026-10-10:
 | Check | Observed result |
 |---|---|
 | USB-only DDS | Phone discovered on the USB tether path in under 10 seconds; IMU callbacks about 422–423 Hz and compressed images about 30 Hz |
-| Wi-Fi-only DDS | Phone discovered on Wi-Fi in under 1 second in the measured run; IMU callbacks about 422 Hz and compressed images about 30 Hz |
+| Wi-Fi-only DDS | Tested directly without this USB helper on Mac; IMU, battery, camera info, compressed images, illuminance, status, and audio messages were received |
 | Independence from viewers | Discovery and sensor callbacks worked with the persistent helper; Foxglove and RQT were not needed |
 | Link lifecycle | Stopping the helper caused the phone's peer status to return to waiting; restarting the helper restored discovery without restarting the phone app |
 | BatteryState | The helper subscribes and reports event-driven samples; check its diagnostic entry on the target device because battery update cadence is platform-dependent |
-| Host package build and tests | Passed in the existing Pixi ROS 2 environment; 5 unit tests |
+| Host package build and tests | USB helper built in the existing Pixi ROS 2 environment; all 6 unit tests passed |
 | Android debug build | Passed; the unit-test task reports `NO-SOURCE` |
 | Ubuntu live test | Not run |
 | Fast DDS Discovery Server mode | Experimental; not part of the validated USB/Wi-Fi path |

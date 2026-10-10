@@ -44,6 +44,8 @@ class AsrLinkManager(Node):
         self.declare_parameter("asr_namespace_prefix", ASR_NAMESPACE_PREFIX)
 
         self.transport = self.get_parameter("transport").get_parameter_value().string_value
+        if self.transport != "usb":
+            raise ValueError("asr_ros2 helper supports USB only; use a regular ROS 2 node to test Wi-Fi DDS")
         self.requested_interface = self.get_parameter("interface").get_parameter_value().string_value
         self.namespace_prefix = (
             self.get_parameter("asr_namespace_prefix").get_parameter_value().string_value.rstrip("/")

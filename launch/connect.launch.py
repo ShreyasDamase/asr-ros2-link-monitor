@@ -145,7 +145,8 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "transport",
                 default_value="usb",
-                description="Selected phone link: usb or wifi",
+                choices=["usb"],
+                description="USB tether transport (this helper is USB-only)",
             ),
             DeclareLaunchArgument(
                 "interface",

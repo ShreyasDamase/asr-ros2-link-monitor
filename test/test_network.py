@@ -44,7 +44,12 @@ class NetworkHelpersTest(unittest.TestCase):
     def test_unknown_transport_is_rejected(self):
         interface, _, details = resolve_interface("bluetooth")
         self.assertIsNone(interface)
-        self.assertIn("must be 'usb' or 'wifi'", details)
+        self.assertIn("must be 'usb'", details)
+
+    def test_wifi_transport_is_disabled_for_helper(self):
+        interface, _, details = resolve_interface("wifi")
+        self.assertIsNone(interface)
+        self.assertIn("must be 'usb'", details)
 
     def test_asr_namespace_prefix_matches_runtime_namespace(self):
         self.assertTrue(is_asr_namespace("/asr_android_168", "/asr_android_"))

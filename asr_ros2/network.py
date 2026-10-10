@@ -11,7 +11,9 @@ _INTERFACE_NAME = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _IPV4 = re.compile(r"\binet(?:\s+addr:)?\s+(\d{1,3}(?:\.\d{1,3}){3})")
 _TRANSPORT_PREFIXES = {
     "usb": ("feth", "rndis", "usb", "enx", "enp", "eth"),
-    "wifi": ("wlan", "wlp", "wifi"),
+    # Wi-Fi interface auto-selection is intentionally disabled. The host helper
+    # is reserved for USB DDS checks; Wi-Fi is tested with ordinary ROS 2 nodes.
+    # "wifi": ("wlan", "wlp", "wifi"),
 }
 
 
@@ -92,32 +94,34 @@ def inspect_interface(name):
     return True, addresses, "interface is up"
 
 
-def _mac_wifi_interface():
-    try:
-        result = subprocess.run(
-            ["networksetup", "-listallhardwareports"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=3,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return None
-    if result.returncode != 0:
-        return None
-
-    blocks = re.split(r"\n\s*\n", result.stdout)
-    for block in blocks:
-        if re.search(r"Hardware Port:\s*Wi-Fi\b", block, re.IGNORECASE):
-            match = re.search(r"Device:\s*(\S+)", block)
-            if match:
-                return match.group(1)
-    return None
+# Previous macOS Wi-Fi interface discovery implementation, retained for later
+# restoration if Wi-Fi helper support is requested again:
+# def _mac_wifi_interface():
+#     try:
+#         result = subprocess.run(
+#             ["networksetup", "-listallhardwareports"],
+#             capture_output=True,
+#             text=True,
+#             check=False,
+#             timeout=3,
+#         )
+#     except (FileNotFoundError, subprocess.TimeoutExpired):
+#         return None
+#     if result.returncode != 0:
+#         return None
+#
+#     blocks = re.split(r"\n\s*\n", result.stdout)
+#     for block in blocks:
+#         if re.search(r"Hardware Port:\s*Wi-Fi\b", block, re.IGNORECASE):
+#             match = re.search(r"Device:\s*(\S+)", block)
+#             if match:
+#                 return match.group(1)
+#     return None
 
 
 def resolve_interface(transport, requested_interface=""):
     if transport not in _TRANSPORT_PREFIXES:
-        return None, [], f"transport must be 'usb' or 'wifi', got {transport!r}"
+        return None, [], f"transport must be 'usb', got {transport!r}"
 
     if requested_interface:
         usable, addresses, details = inspect_interface(requested_interface)
@@ -126,12 +130,16 @@ def resolve_interface(transport, requested_interface=""):
         return None, addresses, f"requested interface {requested_interface}: {details}"
 
     interface_names = [name for _, name in socket.if_nameindex()]
-    if transport == "wifi" and platform.system() == "Darwin":
-        wifi_name = _mac_wifi_interface()
-        candidates = [wifi_name] if wifi_name else []
-    else:
-        prefixes = _TRANSPORT_PREFIXES[transport]
-        candidates = [name for name in interface_names if name.lower().startswith(prefixes)]
+    prefixes = _TRANSPORT_PREFIXES[transport]
+    candidates = [name for name in interface_names if name.lower().startswith(prefixes)]
+
+    # Previous Wi-Fi helper path, retained here as comments for reference:
+    # if transport == "wifi" and platform.system() == "Darwin":
+    #     wifi_name = _mac_wifi_interface()
+    #     candidates = [wifi_name] if wifi_name else []
+    # else:
+    #     prefixes = _TRANSPORT_PREFIXES[transport]
+    #     candidates = [name for name in interface_names if name.lower().startswith(prefixes)]
 
     usable_candidates = []
     for candidate in candidates:
