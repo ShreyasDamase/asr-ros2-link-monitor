@@ -10,7 +10,12 @@ This repository contains the ROS 2 host helper only. It does not contain the And
 
 - The helper builds and its six unit tests pass in the existing ROS 2 Lyrical environment.
 - A Mac USB-tether test received IMU and compressed-camera messages from the phone; Ubuntu live testing is still pending.
-- The source repository is public, but it does not yet grant an open-source license. Its package manifest still has a proprietary license label and placeholder maintainer email; these must be resolved before redistributing the package or publishing it to the ROS Index.
+
+## Downloads
+
+| Version | Asset | Description |
+| ------- | ----- | ----------- |
+| 1.0.0 | [ASR ROS 2 USB Link Monitor Source](https://github.com/ShreyasDamase/asr-ros2-link-monitor/releases/latest) | Official ROS 2 Package Release |
 
 ## Requirements
 
@@ -103,4 +108,6 @@ This helper is a convenient persistent USB test and diagnostics node. It is **no
 
 ## Source availability and licensing
 
-The GitHub repository is publicly accessible, but public visibility does not itself grant permission to redistribute or use the package under an open-source license. The ROS package metadata currently says `Proprietary` and contains a placeholder maintainer contact. Resolve the license and maintainer details before creating a tagged distributable release or submitting the package to the ROS Index. Ubuntu and Raspberry Pi live validation are also still outstanding; those are validation gaps, separate from source access.
+This project is maintained by [Shreyas Damase](https://github.com/ShreyasDamase).
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. Third-party licenses and attribution notices are provided in the [NOTICE.txt](NOTICE.txt) file.
