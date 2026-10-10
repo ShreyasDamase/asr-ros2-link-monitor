@@ -1,104 +1,90 @@
-# ASR ROS 2 host helper
+# ASR ROS 2 USB Link Monitor
 
-`asr_ros2` is a persistent ROS 2 host node for connecting to the ASR Android Runtime. It discovers the phone's ROS graph, subscribes to available sensor topics, and reports graph visibility separately from actual message delivery. It does not require Foxglove, RQT, or a short-lived ROS 2 CLI command to keep the host participant present.
+`asr_ros2` is a small, persistent ROS 2 host node for checking an ASR Android sensor node over **USB tethering**. It reports graph discovery separately from sensor-message delivery and publishes its own diagnostics.
 
-## Compatibility
+This repository contains the ROS 2 host helper only. It does not contain the Android app, implement USB tethering, or replace Cyclone DDS. The phone and host communicate over the IP network created by Android USB tethering.
 
-- ROS 2 Lyrical, `rclpy`, and host `rmw_fastrtps_cpp` on macOS or Linux. The tested host Fast DDS participant interoperates with the Android Cyclone DDS node.
-- The phone and host must use the same `ROS_DOMAIN_ID` (the default is `0`).
-- The Android app must have the selected DDS path enabled. Sensor publishing also requires the Android sensor runtime and the relevant sensor enabled.
-- The live checks recorded below used the existing Pixi ROS 2 Lyrical environment, a Xiaomi Android phone, and macOS. Ubuntu was not live-tested.
+## Current status
 
-The helper checks and applies a Fast DDS host interface allowlist for the selected USB tether path. The Android app separately restricts its Cyclone DDS participant to the selected phone transport.
+- The helper builds and its six unit tests pass in the existing ROS 2 Lyrical environment.
+- A Mac USB-tether test received IMU and compressed-camera messages from the phone; Ubuntu live testing is still pending.
+- This is a pre-release repository. The package manifest still has a proprietary license label and placeholder maintainer email. Do not redistribute it until those fields are finalized.
 
-## Build in the existing ROS environment
+## Requirements
 
-No new library or Pixi package is required. From a shell where the existing Pixi ROS environment is active:
+- ROS 2 Lyrical with Python `rclpy`, `launch`, and `launch_ros`.
+- Host middleware: `rmw_fastrtps_cpp`.
+- Matching `ROS_DOMAIN_ID` on the phone and host (default: `0`).
+- An ASR Android app with **Runtime** and **USB DDS** enabled, plus Android USB tethering enabled.
+
+The host can use Fast DDS while the phone uses Cyclone DDS; the two interoperated in the recorded Mac test. The helper is USB-only. Wi-Fi DDS can be checked with an ordinary ROS 2 node or the robot's persistent node.
+
+## Build from source
+
+Clone this repository into a ROS 2 workspace's `src` directory:
 
 ```bash
-cd ~/Vanguard/ASR/asrandroid
-colcon build --base-paths asr_ros2 --packages-select asr_ros2
-source install/setup.zsh  # use setup.bash in bash
+mkdir -p ~/asr_ros2_ws/src
+cd ~/asr_ros2_ws/src
+git clone https://github.com/ShreyasDamase/asr-ros2-link-monitor.git
+cd ..
+colcon build --packages-up-to asr_ros2
+source install/setup.bash  # use setup.zsh in zsh
 ```
 
-Check the environment before connecting:
+## Check USB DDS
 
-```bash
-echo "ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}"
-echo "RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-<ROS default>}"
-```
+1. Connect the phone to the host and enable **USB tethering** in Android settings.
+2. In **ASR Runtime (Cyclone DDS)**, start the sensor runtime, enable **USB DDS**, and disable **Wi-Fi DDS** for an isolated USB test.
+3. In a sourced ROS 2 host environment, make sure the domain and RMW are set:
 
-The selected host middleware must resolve to `rmw_fastrtps_cpp`. The helper exits with a clear error if it does not. This is the host's middleware; the Android app uses Cyclone DDS.
+   ```bash
+   export ROS_DOMAIN_ID=0
+   export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+   ```
 
-## Connect over USB
-
-1. Connect the phone, enable USB tethering, and enable **USB DDS** in the app.
-2. Leave **Wi-Fi DDS** off for an isolated USB-path check.
-3. Start the persistent host node:
+4. Start the persistent monitor:
 
    ```bash
    ros2 launch asr_ros2 connect.launch.py transport:=usb
    ```
 
-If automatic selection reports that the interface is ambiguous or missing, inspect the host addresses (`ifconfig` on macOS or `ip -br -4 addr` on Linux) and specify the tether interface, for example:
+If interface auto-detection does not choose the USB tether, specify it. Examples are `feth0` on some macOS setups or `usb0`/`enx...` on Linux; use the interface name shown by the host OS:
 
 ```bash
-ros2 launch asr_ros2 connect.launch.py transport:=usb interface:=feth0
+ros2 launch asr_ros2 connect.launch.py transport:=usb interface:=usb0
 ```
 
-## Wi-Fi DDS checks
+Stop the monitor with `Ctrl+C`.
 
-The host helper is intentionally USB-only. To verify Wi-Fi DDS, enable **Wi-Fi DDS** in the app and use the ROS 2 tools or a persistent robot node already available in your environment; do not launch `asr_ros2` for Wi-Fi. The earlier Wi-Fi helper mode was removed from the active path and its interface-selection logic remains commented in `asr_ros2/network.py` for reference.
+## What success looks like
 
-## What it checks
+The console should report the selected host interface and ASR topics as they are discovered. It then reports message counts and rates for flowing sensors. Battery updates are event-driven, so a continuous rate is not expected.
 
-The helper looks for ASR namespaces (`/asr_android_<device-id>`) and subscribes to these topics when their expected types appear:
+The monitor publishes:
 
-| Topic suffix | Type | What the helper reports |
-|---|---|---|
-| `imu` | `sensor_msgs/msg/Imu` | Message count, recent rate, and age; stale after 2 seconds |
-| `camera/image/compressed` | `sensor_msgs/msg/CompressedImage` | Message count, recent rate, and age; stale after 5 seconds |
-| `battery` | `sensor_msgs/msg/BatteryState` | Event-driven update count, age, and last values; no periodic rate is expected |
-| `status` | `std_msgs/msg/String` | Runtime heartbeat; stale after 12 seconds |
+- `/asr_ros2/status` — JSON summary of host link, phone nodes, topics, and received messages.
+- `/asr_ros2/diagnostics` — ROS 2 `DiagnosticArray` entries for the same health checks.
 
-It publishes `/asr_ros2/diagnostics` (`diagnostic_msgs/msg/DiagnosticArray`) and `/asr_ros2/status` (`std_msgs/msg/String`, JSON). These reports distinguish:
+For example:
 
-- A host interface with an IPv4 address.
-- An ASR node visible in the ROS graph.
-- A topic and message type visible in the graph.
-- Actual messages received by the host.
+```bash
+ros2 topic echo /asr_ros2/status
+```
 
-For example, a visible camera topic without callbacks means discovery of the endpoint succeeded, but image delivery has not yet been confirmed.
+Topic visibility alone does not prove message delivery; use the helper's callback counts and rates to confirm that samples arrive.
 
-The Android battery publisher and this helper use transient-local reliable QoS so a late-joining helper can receive the current battery value. The Android service also republishes its cached value when a DDS participant is restarted; the host reports this as an event-driven state update, not a rate.
+## Important distinction
 
-## Validation
-
-Results from the live Mac/Pixi test session on 2026-10-10:
-
-| Check | Observed result |
-|---|---|
-| USB-only DDS | Phone discovered on the USB tether path in under 10 seconds; IMU callbacks about 422–423 Hz and compressed images about 30 Hz |
-| Wi-Fi-only DDS | Tested directly without this USB helper on Mac; IMU, battery, camera info, compressed images, illuminance, status, and audio messages were received |
-| Independence from viewers | Discovery and sensor callbacks worked with the persistent helper; Foxglove and RQT were not needed |
-| Link lifecycle | Stopping the helper caused the phone's peer status to return to waiting; restarting the helper restored discovery without restarting the phone app |
-| BatteryState | The helper subscribes and reports event-driven samples; check its diagnostic entry on the target device because battery update cadence is platform-dependent |
-| Host package build and tests | USB helper built in the existing Pixi ROS 2 environment; all 6 unit tests passed |
-| Android debug build | Passed; the unit-test task reports `NO-SOURCE` |
-| Ubuntu live test | Not run |
-| Fast DDS Discovery Server mode | Experimental; not part of the validated USB/Wi-Fi path |
-
-The under-10-second target was met in these runs; this is an observed result, not a guarantee for every Wi-Fi network or tethering state. Cold ROS 2 CLI daemon startup/cache behavior can delay `ros2 node list`; it is separate from the persistent helper's live discovery and sensor callbacks.
+This helper is a convenient persistent USB test and diagnostics node. It is **not required by DDS** and should not be a required robot dependency. In deployment, any always-running ROS 2 node on the robot can discover and subscribe to the phone. The helper is useful when you specifically want ASR link and sensor-health reporting.
 
 ## Troubleshooting
 
-- **No usable interface:** connect the selected transport and check the host interface name/address. Pass `interface:=...` if auto-selection is ambiguous.
-- **No ASR node:** confirm the matching phone DDS toggle, domain ID, middleware, and that the network permits peer discovery.
-- **Node/topic visible, but no sensor messages:** confirm the sensor runtime and the particular sensor are enabled; then inspect the relevant diagnostic entry for topic visibility, count, and last-message age.
-- **CLI graph differs from helper diagnostics:** the ROS 2 CLI daemon is a separate process and can retain its startup environment/cache. The helper's own graph and callbacks are the primary evidence for this monitor; restart the CLI daemon only if its environment was changed or its view is stale.
+- **No interface selected:** enable USB tethering, inspect the host's IPv4 interfaces, and pass `interface:=<name>`.
+- **No ASR node discovered:** confirm USB DDS is enabled, phone tethering is active, and both sides use the same ROS domain.
+- **Topics visible but no samples:** confirm the phone runtime and relevant sensors are running; check offered/requested QoS compatibility.
+- **Wi-Fi test:** do not launch this USB-only helper. Use a persistent robot node or a ROS 2 subscriber on the Wi-Fi network.
 
-Stop the helper with Ctrl+C. It shuts down its ROS node and subscriptions cleanly. The optional Discovery Server launch arguments are experimental and are not needed for ordinary USB or Wi-Fi discovery.
+## Release notes
 
-## Public release note
-
-This package is source-buildable but has not been published to the ROS Index or as a binary package. Before an open-source release, replace the current proprietary license metadata and placeholder maintainer contact with the project's chosen license and a real maintainer address.
+Before public release, select an open-source license, add the corresponding `LICENSE` file, replace the placeholder maintainer contact in `package.xml` and `setup.py`, and complete the Ubuntu live test. Binary ROS distribution through the ROS release process can be considered later; a source release is sufficient to start sharing once the license and metadata are settled.
