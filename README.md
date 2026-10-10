@@ -19,7 +19,9 @@ This repository contains the ROS 2 host helper only. It does not contain the And
 - Matching `ROS_DOMAIN_ID` on the phone and host (default: `0`).
 - An ASR Android app with **Runtime** and **USB DDS** enabled, plus Android USB tethering enabled.
 
-The host can use Fast DDS while the phone uses Cyclone DDS; the two interoperated in the recorded Mac test. The helper is USB-only. Wi-Fi DDS can be checked with an ordinary ROS 2 node or the robot's persistent node.
+The host can use Fast DDS while the phone uses Cyclone DDS; the two interoperated in the recorded Mac test. This helper is **USB-only**. Wi-Fi DDS does not need this helper: use an ordinary ROS 2 node or the robot's persistent node on the Wi-Fi network. This package intentionally provides no Wi-Fi helper.
+
+The helper is expected to work on a Raspberry Pi with a compatible ROS 2 installation and a usable USB-tether network interface. Raspberry Pi support has not been verified yet; confirm it on the target Pi before relying on it in a robot.
 
 ## Build from source
 
@@ -90,7 +92,7 @@ Topic visibility alone does not prove message delivery; use the helper's callbac
 
 ## Important distinction
 
-This helper is a convenient persistent USB test and diagnostics node. It is **not required by DDS** and should not be a required robot dependency. In deployment, any always-running ROS 2 node on the robot can discover and subscribe to the phone. The helper is useful when you specifically want ASR link and sensor-health reporting.
+This helper is a convenient persistent USB test and diagnostics node. It is **not required by DDS** and should not be a required robot dependency. For Wi-Fi, an ordinary always-running ROS 2 node can discover and subscribe to the phone; this package adds no Wi-Fi functionality. On USB, use the helper when you want explicit ASR link and sensor-health reporting. Raspberry Pi support remains to be confirmed on-device.
 
 ## Troubleshooting
 
