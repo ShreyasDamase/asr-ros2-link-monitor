@@ -4,13 +4,13 @@
 
 It is a diagnostic tool, not a robot driver or a DDS service. It does not start the phone runtime, make a phone discoverable, or prove that every other ROS 2 computer can reach the phone. The report describes what this host can observe while the helper is running.
 
-This repository contains the ROS 2 host helper only. It does not contain the Android app, implement USB tethering, or replace Cyclone DDS. The phone and host communicate over the IP network created by Android USB tethering.
+This repository contains the ROS 2 host helper only. It does not contain the Android app, implement USB tethering, or replace Cyclone DDS. The phone and host communicate over the IP network created by Android USB tethering. The companion phone application is [ASR Android Runtime](https://github.com/ShreyasDamase/asr-android-runtime).
 
 ## Current status
 
 - The helper builds and its six unit tests pass in the existing ROS 2 Lyrical environment.
 - A Mac USB-tether test received IMU and compressed-camera messages from the phone; Ubuntu live testing is still pending.
-- This is a pre-release repository. The package manifest still has a proprietary license label and placeholder maintainer email. Do not redistribute it until those fields are finalized.
+- The source repository is public, but it does not yet grant an open-source license. Its package manifest still has a proprietary license label and placeholder maintainer email; these must be resolved before redistributing the package or publishing it to the ROS Index.
 
 ## Requirements
 
@@ -101,6 +101,6 @@ This helper is a convenient persistent USB test and diagnostics node. It is **no
 - **Topics visible but no samples:** confirm the phone runtime and relevant sensors are running; check offered/requested QoS compatibility.
 - **Wi-Fi test:** do not launch this USB-only helper. Use a persistent robot node or a ROS 2 subscriber on the Wi-Fi network.
 
-## Release notes
+## Source availability and licensing
 
-Before public release, select an open-source license, add the corresponding `LICENSE` file, replace the placeholder maintainer contact in `package.xml` and `setup.py`, and complete the Ubuntu live test. Binary ROS distribution through the ROS release process can be considered later; a source release is sufficient to start sharing once the license and metadata are settled.
+The GitHub repository is publicly accessible, but public visibility does not itself grant permission to redistribute or use the package under an open-source license. The ROS package metadata currently says `Proprietary` and contains a placeholder maintainer contact. Resolve the license and maintainer details before creating a tagged distributable release or submitting the package to the ROS Index. Ubuntu and Raspberry Pi live validation are also still outstanding; those are validation gaps, separate from source access.
